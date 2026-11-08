@@ -19,6 +19,8 @@ All redirect flows (Google OAuth, email confirmation, password recovery) finish 
    - Site URL: your `PUBLIC_SITE_URL`
    - Redirect URLs: add `<PUBLIC_SITE_URL>/auth/callback` (for local work, `http://localhost:3000/auth/callback`)
 
+On Vercel, set `PUBLIC_SITE_URL` to the production origin, such as `https://your-app.vercel.app`. If it is missing or mistakenly set to localhost, Cognera uses Vercel's production domain environment value when available. Make sure the matching `/auth/callback` URL is in Supabase's Redirect URLs list.
+
 Cognera reads Supabase's public `/auth/v1/settings` to see whether Google is enabled. When it is off, the Google button is shown disabled with that reason, and `/auth/google` sends people back to `/login` with a clear message instead of a raw provider error.
 
 Only same-site relative paths are accepted for `?next=` after sign-in.
