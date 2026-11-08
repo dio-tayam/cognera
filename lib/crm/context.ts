@@ -32,10 +32,18 @@ export async function requireCrmContext(): Promise<
     }
   }
 
-  const memberships = await database.query<{ id: string; role: string }>(
-    "select id, role from app_organizations_for_user($1)",
-    [user.id],
-  )
+  let memberships: { rows: { id: string; role: string }[] }
+  try {
+    memberships = await database.query<{ id: string; role: string }>(
+      "select id, role from app_organizations_for_user($1)",
+      [user.id],
+    )
+  } catch {
+    return {
+      ok: false,
+      response: jsonError(503, "database_unavailable", "The database could not be reached."),
+    }
+  }
   if (memberships.rows.length === 0) {
     return {
       ok: false,
