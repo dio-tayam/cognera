@@ -123,7 +123,7 @@ async function checkSupabase(): Promise<HealthCheck> {
 async function checkOllama(): Promise<HealthCheck> {
   const raw = blankToUndefined(process.env.OLLAMA_BASE_URL)
   if (!raw) {
-    return blocked("OLLAMA_BASE_URL is not set. Local AI inference is disabled.")
+    return blocked("OLLAMA_BASE_URL is not set. AI inference is disabled.")
   }
   if (!z.url().safeParse(raw).success) {
     return failed("OLLAMA_BASE_URL is not a valid URL.")
@@ -131,7 +131,9 @@ async function checkOllama(): Promise<HealthCheck> {
 
   const started = Date.now()
   try {
+    const apiKey = blankToUndefined(process.env.OLLAMA_API_KEY)
     const response = await fetch(new URL("/api/tags", raw), {
+      headers: apiKey ? { authorization: `Bearer ${apiKey}` } : undefined,
       cache: "no-store",
       redirect: "error",
       signal: AbortSignal.timeout(2_000),
@@ -150,7 +152,7 @@ async function checkOllama(): Promise<HealthCheck> {
       detail:
         models === null
           ? "Ollama responded without a model list."
-          : `Ollama responded with ${models} local model${models === 1 ? "" : "s"}.`,
+          : `Ollama responded with ${models} model${models === 1 ? "" : "s"}.`,
       latencyMs,
     }
   } catch (error) {

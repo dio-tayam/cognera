@@ -218,11 +218,16 @@ export class OllamaProvider implements AiProvider {
     const started = Date.now()
     const timeoutMs = options.timeoutMs ?? aiLimits.healthTimeoutMs
     try {
+      const isOllamaCloud = base.hostname === "ollama.com"
       const [versionRes, tagsRes] = await Promise.all([
-        this.request(new URL("/api/version", base), { method: "GET" }, { ...options, timeoutMs }),
+        isOllamaCloud
+          ? Promise.resolve(null)
+          : this.request(new URL("/api/version", base), { method: "GET" }, { ...options, timeoutMs }),
         this.request(new URL("/api/tags", base), { method: "GET" }, { ...options, timeoutMs }),
       ])
-      const version = versionResponse.safeParse(await versionRes.json().catch(() => null))
+      const version = versionRes
+        ? versionResponse.safeParse(await versionRes.json().catch(() => null))
+        : null
       const tags = tagsResponse.safeParse(await tagsRes.json().catch(() => null))
       const installedModels = tags.success ? tags.data.models.map((model) => model.name).slice(0, 50) : []
       const latencyMs = Date.now() - started
@@ -231,13 +236,19 @@ export class OllamaProvider implements AiProvider {
         ...common,
         status: hasModel ? "ready" : "model_missing",
         message: hasModel
-          ? `Ollama is running and ${this.settings.model} is installed.`
-          : `Ollama is running, but ${this.settings.model} is not installed.`,
+          ? isOllamaCloud
+            ? `Ollama Cloud can use ${this.settings.model}.`
+            : `Ollama is running and ${this.settings.model} is installed.`
+          : isOllamaCloud
+            ? `${this.settings.model} is not available in your Ollama Cloud model list.`
+            : `Ollama is running, but ${this.settings.model} is not installed.`,
         hint: hasModel
           ? null
-          : `Download it yourself with: ollama pull ${this.settings.model}. Cognera never downloads models automatically. ${modelRecommendationText()}`,
+          : isOllamaCloud
+            ? "Set OLLAMA_MODEL to a model name returned by Ollama Cloud."
+            : `Download it yourself with: ollama pull ${this.settings.model}. Cognera never downloads models automatically. ${modelRecommendationText()}`,
         baseUrl: base.origin,
-        version: version.success ? version.data.version : null,
+        version: version?.success ? version.data.version : null,
         installedModels,
         latencyMs,
       }
@@ -247,7 +258,10 @@ export class OllamaProvider implements AiProvider {
         ...common,
         status: "unreachable",
         message: `${message} AI features are paused; nothing was sent to another provider.`,
-        hint: `Start Ollama (run "ollama serve" or open the Ollama app) and confirm it listens at ${base.origin}.`,
+        hint:
+          base.hostname === "ollama.com"
+            ? "Check that OLLAMA_API_KEY is valid and Ollama Cloud is available."
+            : `Start Ollama (run "ollama serve" or open the Ollama app) and confirm it listens at ${base.origin}.`,
         baseUrl: base.origin,
         version: null,
         installedModels: [],
@@ -259,7 +273,7 @@ export class OllamaProvider implements AiProvider {
   private requireBase(): URL {
     if (!this.settings.baseUrl) {
       throw new AiError("not_configured", this.settings.problem ?? "Ollama is not configured.", {
-        hint: "Set OLLAMA_BASE_URL and OLLAMA_MODEL, then run npm run ai:check.",
+        hint: "Set OLLAMA_BASE_URL and OLLAMA_MODEL. Ollama Cloud also needs OLLAMA_API_KEY.",
       })
     }
     return this.settings.baseUrl
@@ -274,7 +288,11 @@ export class OllamaProvider implements AiProvider {
     try {
       response = await fetch(url, {
         ...init,
-        headers: { "content-type": "application/json", accept: "application/json" },
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+          ...(this.settings.apiKey ? { authorization: `Bearer ${this.settings.apiKey}` } : {}),
+        },
         redirect: "manual",
         cache: "no-store",
         signal,

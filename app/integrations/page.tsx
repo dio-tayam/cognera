@@ -16,7 +16,7 @@ const integrations: Array<{
   icon: LucideIcon
   tone: string
 }> = [
-  { name: "Ollama", category: "AI", body: "Local models for drafting, summarizing, classifying and transforming text. No API key.", setting: "OLLAMA_BASE_URL", icon: Cpu, tone: "bg-brand-gradient text-white" },
+  { name: "Ollama", category: "AI", body: "Local or hosted models for drafting, summarizing, classifying and transforming text.", setting: "OLLAMA_BASE_URL", icon: Cpu, tone: "bg-brand-gradient text-white" },
   { name: "Google sign-in", category: "Auth", body: "One-click sign-up and log-in through Supabase Auth's Google provider.", setting: "Supabase → Providers → Google", icon: KeyRound, tone: "bg-card text-foreground border" },
   { name: "Supabase Auth", category: "Auth", body: "Email and password accounts, confirmation and recovery links, session cookies.", setting: "SUPABASE_URL", icon: ShieldCheck, tone: "bg-success/15 text-success" },
   { name: "PostgreSQL", category: "Data", body: "Tenant data with row-level security, the workflow job queue and AI usage ledger.", setting: "DATABASE_URL", icon: Database, tone: "bg-navy/15 text-navy" },

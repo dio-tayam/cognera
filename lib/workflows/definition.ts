@@ -589,7 +589,7 @@ export function readinessIssues(
     if ((node.type === "generate_text" || node.type === "ai_transform") && !integrations.ai) {
       issues.push({
         nodeId: node.id,
-        message: "Local AI is not configured. Set OLLAMA_BASE_URL before activating.",
+        message: "Ollama is not configured. Set OLLAMA_BASE_URL before activating.",
       })
     }
   }

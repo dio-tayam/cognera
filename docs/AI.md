@@ -31,6 +31,18 @@ npm run ai:check
 
 It detects the `ollama` binary, checks the server, lists installed models, and suggests a model for your RAM. It does **not** download anything. `npm run ai:check -- --pull` asks for a `y` before running `ollama pull`.
 
+## Use Ollama Cloud from Vercel
+
+Vercel cannot reach Ollama running at `localhost` on your computer. To use Ollama Cloud, create an API key in your Ollama account and add these variables to the Vercel Production environment:
+
+```
+OLLAMA_BASE_URL=https://ollama.com
+OLLAMA_API_KEY=<your Ollama API key>
+OLLAMA_MODEL=gemma4:31b
+```
+
+Choose a model name available to your account from Ollama's cloud model list. Keep `OLLAMA_API_KEY` server-side; never prefix it with `NEXT_PUBLIC_`. Redeploy after saving the variables, then check `/dashboard/integrations` and `/api/ai/health`. Cloud prompts are sent to Ollama's hosted service; review its current [data handling](https://docs.ollama.com/cloud) and [usage plans](https://ollama.com/pricing) before enabling it.
+
 ## Choosing a model
 
 | RAM (or VRAM)   | Suggested model | Download |

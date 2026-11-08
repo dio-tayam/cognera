@@ -20,6 +20,7 @@ export const defaultOllamaUrl = "http://127.0.0.1:11434"
 
 export type OllamaSettings = {
   baseUrl: URL | null
+  apiKey: string | null
   /** Why baseUrl is null, if it is. */
   problem: string | null
   model: string
@@ -28,11 +29,13 @@ export type OllamaSettings = {
 
 export function readOllamaSettings(env: NodeJS.ProcessEnv = process.env): OllamaSettings {
   const model = blankToUndefined(env.OLLAMA_MODEL) ?? defaultOllamaModel
+  const apiKey = blankToUndefined(env.OLLAMA_API_KEY) ?? null
   const timeoutMs = clampTimeout(Number.parseInt(env.AI_TIMEOUT_MS ?? "", 10))
   const raw = blankToUndefined(env.OLLAMA_BASE_URL)
   if (!raw) {
     return {
       baseUrl: null,
+      apiKey,
       problem: "OLLAMA_BASE_URL is not set.",
       model,
       timeoutMs,
@@ -41,19 +44,29 @@ export function readOllamaSettings(env: NodeJS.ProcessEnv = process.env): Ollama
   try {
     const url = new URL(raw)
     if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return { baseUrl: null, problem: "OLLAMA_BASE_URL must use http or https.", model, timeoutMs }
+      return { baseUrl: null, apiKey, problem: "OLLAMA_BASE_URL must use http or https.", model, timeoutMs }
     }
     if (url.username || url.password) {
       return {
         baseUrl: null,
+        apiKey,
         problem: "OLLAMA_BASE_URL must not contain credentials.",
         model,
         timeoutMs,
       }
     }
-    return { baseUrl: url, problem: null, model, timeoutMs }
+    if (url.hostname === "ollama.com" && !apiKey) {
+      return {
+        baseUrl: null,
+        apiKey,
+        problem: "OLLAMA_API_KEY is required for Ollama Cloud.",
+        model,
+        timeoutMs,
+      }
+    }
+    return { baseUrl: url, apiKey, problem: null, model, timeoutMs }
   } catch {
-    return { baseUrl: null, problem: "OLLAMA_BASE_URL is not a valid URL.", model, timeoutMs }
+    return { baseUrl: null, apiKey, problem: "OLLAMA_BASE_URL is not a valid URL.", model, timeoutMs }
   }
 }
 

@@ -9,7 +9,7 @@ type Tab = { id: string; title: string; body: string; href: string; icon: Lucide
 
 const tabs: Tab[] = [
   { id: "auto", title: "Automations", body: "Triggers, conditions and AI steps on a canvas, with retries and a log for every run.", href: "/dashboard/automations", icon: Workflow },
-  { id: "ai", title: "AI workspace", body: "Draft, summarize, classify and rewrite with a local model. Every result is editable.", href: "/dashboard/ai", icon: Cpu },
+  { id: "ai", title: "AI workspace", body: "Draft, summarize, classify and rewrite with Ollama. Every result is editable.", href: "/dashboard/ai", icon: Cpu },
   { id: "leads", title: "Leads CRM", body: "Every inquiry in one pipeline — status, notes, activity and CSV export.", href: "/dashboard/leads", icon: Users },
   { id: "cms", title: "Content", body: "Pages and posts stay drafts until someone with publish rights ships them.", href: "/dashboard/cms", icon: FileText },
   { id: "analytics", title: "Analytics", body: "Pipeline, workflow and AI usage, computed from your own records only.", href: "/dashboard/analytics", icon: BarChart3 },

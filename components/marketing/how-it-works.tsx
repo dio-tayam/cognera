@@ -6,8 +6,8 @@ import { cn } from "cn"
 
 const steps = [
   {
-    title: "Connect a local model",
-    body: "Install Ollama on macOS, Windows or Linux and pull a model sized for your RAM. Cognera suggests one and never downloads without asking.",
+    title: "Connect an AI model",
+    body: "Use local Ollama or connect to Ollama Cloud. Cognera never downloads local models without asking.",
     icon: Cpu,
     lines: ["$ npm run ai:check", "pass: Ollama answers at 127.0.0.1:11434", "Suggested: llama3.2 (about 2.0 GB)", "$ ollama pull llama3.2"],
   },
