@@ -9,7 +9,7 @@ import {
 } from "@/lib/cms/document"
 import { canPublishCms, canWriteCms, type CmsKind } from "@/lib/cms/schema"
 
-type Scope = { organizationId: string; userId: string }
+type Scope = { organizationId: string; userId: string; role: string }
 
 export type CmsEntry = {
   id: string
@@ -74,16 +74,6 @@ function asError(error: unknown): AppError {
   }
   if (error instanceof AppError) return error
   return new AppError("database_error", "The content could not be saved.", 500)
-}
-
-async function roleOf(tx: SqlClient, organizationId: string, userId: string): Promise<string> {
-  const result = await tx.query<{ role: string }>(
-    "select role from organization_members where organization_id = $1::uuid and user_id = $2",
-    [organizationId, userId],
-  )
-  const role = result.rows[0]?.role
-  if (!role) throw new AppError("forbidden", "You do not belong to this organization.", 403)
-  return role
 }
 
 async function tagsFor(tx: SqlClient, kind: CmsKind, id: string): Promise<string[]> {
@@ -168,7 +158,6 @@ export async function listContent(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      await roleOf(tx, scope.organizationId, scope.userId)
       const rows = await tx.query<Row>(
         `select ${columns} from ${tableName[kind]} order by updated_at desc`,
       )
@@ -202,7 +191,7 @@ export async function createContent(
       client,
       { tenantId: scope.organizationId, userId: scope.userId },
       async (tx) => {
-        const role = await roleOf(tx, scope.organizationId, scope.userId)
+        const role = scope.role
         if (!canWriteCms(role)) throw new AppError("forbidden", "You cannot edit content.", 403)
         const inserted = await tx.query<{ id: string }>(
           `insert into ${tableName[kind]}
@@ -246,7 +235,6 @@ export async function getContent(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      await roleOf(tx, scope.organizationId, scope.userId)
       return readEntry(tx, kind, id)
     },
   )
@@ -277,7 +265,7 @@ export async function updateContent(
       client,
       { tenantId: scope.organizationId, userId: scope.userId },
       async (tx) => {
-        const role = await roleOf(tx, scope.organizationId, scope.userId)
+        const role = scope.role
         if (!canWriteCms(role)) throw new AppError("forbidden", "You cannot edit content.", 403)
         const current = await readEntry(tx, kind, id)
         if (
@@ -349,7 +337,7 @@ export async function deleteContent(
   id: string,
 ): Promise<void> {
   await withTenant(client, { tenantId: scope.organizationId, userId: scope.userId }, async (tx) => {
-    const role = await roleOf(tx, scope.organizationId, scope.userId)
+    const role = scope.role
     if (!canPublishCms(role)) throw new AppError("forbidden", "You cannot delete content.", 403)
     await readEntry(tx, kind, id)
     await tx.query(`delete from ${tagTable[kind]} where ${tagColumn[kind]} = $1::uuid`, [id])
@@ -363,7 +351,6 @@ export async function listRevisions(client: SqlClient, scope: Scope, kind: CmsKi
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      await roleOf(tx, scope.organizationId, scope.userId)
       await readEntry(tx, kind, id)
       const rows = await tx.query<{ id: string; created_at: Date | string; body: string }>(
         `select id, created_at, body from cms_revisions
@@ -392,7 +379,6 @@ export async function restoreRevision(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      await roleOf(tx, scope.organizationId, scope.userId)
       const current = await readEntry(tx, kind, id)
       const revision = await tx.query<{ body: string }>(
         `select body from cms_revisions where id = $1::uuid and target_type = $2 and target_id = $3::uuid`,

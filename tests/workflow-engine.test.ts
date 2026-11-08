@@ -51,9 +51,9 @@ async function database() {
 
 type Org = {
   id: string
-  owner: { organizationId: string; userId: string }
-  editor: { organizationId: string; userId: string }
-  member: { organizationId: string; userId: string }
+  owner: { organizationId: string; userId: string; role: string }
+  editor: { organizationId: string; userId: string; role: string }
+  member: { organizationId: string; userId: string; role: string }
 }
 
 async function organization(client: SqlClient, slug: string): Promise<Org> {
@@ -68,9 +68,9 @@ async function organization(client: SqlClient, slug: string): Promise<Org> {
   })
   return {
     id,
-    owner: { organizationId: id, userId: ownerId },
-    editor: { organizationId: id, userId: `${slug}-editor` },
-    member: { organizationId: id, userId: `${slug}-member` },
+    owner: { organizationId: id, userId: ownerId, role: "owner" },
+    editor: { organizationId: id, userId: `${slug}-editor`, role: "editor" },
+    member: { organizationId: id, userId: `${slug}-member`, role: "member" },
   }
 }
 
@@ -1169,7 +1169,7 @@ describe("tenant isolation", () => {
     expect(tasks.rows).toHaveLength(0)
     // A user cannot act inside an organization they do not belong to.
     await expect(
-      listExecutions(client, { organizationId: alpha.id, userId: beta.owner.userId }),
+      listExecutions(client, { organizationId: alpha.id, userId: beta.owner.userId, role: beta.owner.role }),
     ).rejects.toMatchObject({
       code: "forbidden",
     })

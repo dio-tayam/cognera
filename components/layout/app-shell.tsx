@@ -1,16 +1,21 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   BarChart3,
+  Building2,
+  Check,
+  ChevronDown,
+  Eye,
   FileText,
   History,
   LayoutGrid,
   LogOut,
   Menu,
   Plug,
+  Plus,
   Settings,
   Sparkles,
   Users,
@@ -20,6 +25,9 @@ import {
 import { Logo } from "@/components/brand/logo"
 import { brand } from "@/config/brand"
 import { signOutAction } from "@/lib/auth/actions"
+import { setRolePreviewAction, switchOrganizationAction } from "@/lib/org/actions"
+import { organizationRoles } from "@/lib/org/schema"
+import type { MembershipRow } from "@/lib/org/store"
 import { breadcrumbsFor, dashboardNav, isNavActive } from "@/lib/navigation"
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { Button } from "@/components/ui/button"
@@ -31,6 +39,15 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Sheet,
   SheetClose,
@@ -84,18 +101,183 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   )
 }
 
+function roleLabel(role: string | undefined | null): string {
+  if (!role) return ""
+  return role.charAt(0).toUpperCase() + role.slice(1)
+}
+
+function OrganizationSwitcher({
+  organizations,
+  currentOrganizationId,
+}: {
+  organizations: MembershipRow[]
+  currentOrganizationId: string | null
+}) {
+  const current = organizations.find((org) => org.id === currentOrganizationId)
+  const [, startTransition] = useTransition()
+
+  if (organizations.length <= 1) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm">
+        <Building2 className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{current?.name ?? "No organization"}</span>
+          {current?.role ? (
+            <span className="block text-xs text-muted-foreground">{roleLabel(current.role)}</span>
+          ) : null}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm transition hover:bg-sidebar-accent/70"
+          />
+        }
+      >
+        <Building2 className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{current?.name ?? "Choose organization"}</span>
+          {current?.role ? (
+            <span className="block truncate text-xs text-muted-foreground">{roleLabel(current.role)}</span>
+          ) : null}
+        </span>
+        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal text-muted-foreground">Organizations</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {organizations.map((org) => (
+            <DropdownMenuItem
+              key={org.id}
+              disabled={org.id === currentOrganizationId}
+              onClick={() => {
+                if (org.id !== currentOrganizationId) startTransition(() => switchOrganizationAction(org.id))
+              }}
+            >
+              <Check className={cn("size-4 shrink-0", org.id === currentOrganizationId ? "opacity-100" : "opacity-0")} />
+              <span className="min-w-0 flex-1 truncate">{org.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{roleLabel(org.role)}</span>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem render={<Link href="/dashboard/settings" />}>
+            <Plus className="size-4" /> Create organization
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const previewRoles = organizationRoles.filter((role) => role !== "owner")
+
+/**
+ * Owner-only: lets the signed-in owner preview the dashboard as a lower role.
+ * Backed by `setRolePreviewAction`, which overrides the role used by every
+ * permission check in the app (see `requireCrmContext`), not just this menu.
+ */
+function RolePreviewSwitcher({ previewRole }: { previewRole: string | null }) {
+  const [, startTransition] = useTransition()
+  const active = previewRole
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className={cn(
+              "flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm transition hover:bg-sidebar-accent/70",
+              active ? "bg-warning/10 text-warning-foreground" : undefined,
+            )}
+          />
+        }
+      >
+        <Eye className="size-4 shrink-0 text-muted-foreground" />
+        <span className="flex-1 truncate">
+          {active ? `Previewing: ${roleLabel(active)}` : "Preview as role"}
+        </span>
+        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal text-muted-foreground">
+            See the dashboard as
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={!active}
+            onClick={() => startTransition(() => setRolePreviewAction("owner"))}
+          >
+            <Check className={cn("size-4 shrink-0", active ? "opacity-0" : "opacity-100")} />
+            <span className="flex-1">Owner (you)</span>
+          </DropdownMenuItem>
+          {previewRoles.map((role) => (
+            <DropdownMenuItem
+              key={role}
+              disabled={role === active}
+              onClick={() => startTransition(() => setRolePreviewAction(role))}
+            >
+              <Check className={cn("size-4 shrink-0", role === active ? "opacity-100" : "opacity-0")} />
+              <span className="flex-1">{roleLabel(role)}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function PreviewBanner({ role }: { role: string }) {
+  const [pending, startTransition] = useTransition()
+  return (
+    <div
+      role="status"
+      className="flex items-center justify-between gap-3 border-b bg-warning/10 px-4 py-2 text-sm leading-6 text-warning-foreground md:px-8"
+    >
+      <span className="flex items-center gap-2">
+        <Eye className="size-4 shrink-0" /> Previewing the dashboard as {roleLabel(role)}.
+      </span>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => startTransition(() => setRolePreviewAction("owner"))}
+        className="shrink-0 font-medium underline underline-offset-4 disabled:opacity-60"
+      >
+        Exit preview
+      </button>
+    </div>
+  )
+}
+
 export function AppShell({
   notice,
   email,
+  organizations,
+  currentOrganizationId,
+  realRole,
+  previewRole,
   children,
 }: {
   notice: string
   email: string | null
+  organizations: MembershipRow[]
+  currentOrganizationId: string | null
+  realRole: string | null
+  previewRole: string | null
   children: ReactNode
 }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const crumbs = breadcrumbsFor(pathname)
+  const isOwner = realRole === "owner"
 
   return (
     <div className="flex min-h-full flex-1">
@@ -110,6 +292,10 @@ export function AppShell({
           <Link href="/" aria-label={`${brand.shortName} home`} className="text-sidebar-foreground">
             <Logo />
           </Link>
+        </div>
+        <div className="flex flex-col gap-1 px-3 pb-2">
+          <OrganizationSwitcher organizations={organizations} currentOrganizationId={currentOrganizationId} />
+          {isOwner ? <RolePreviewSwitcher previewRole={previewRole} /> : null}
         </div>
         <nav aria-label="Application" className="flex-1 overflow-y-auto px-3 py-2">
           <NavLinks pathname={pathname} />
@@ -159,6 +345,10 @@ export function AppShell({
                 <SheetHeader>
                   <SheetTitle>Application</SheetTitle>
                 </SheetHeader>
+                <div className="flex flex-col gap-1 px-4 pb-2">
+                  <OrganizationSwitcher organizations={organizations} currentOrganizationId={currentOrganizationId} />
+                  {isOwner ? <RolePreviewSwitcher previewRole={previewRole} /> : null}
+                </div>
                 <nav aria-label="Application mobile" className="px-4">
                   <ul className="flex flex-col gap-1">
                     {dashboardNav.map((link) => (
@@ -197,27 +387,55 @@ export function AppShell({
             <span className="md:hidden">
               <Logo />
             </span>
-            <p className="hidden items-center gap-2 rounded-full border bg-card px-3 py-1 text-sm text-muted-foreground sm:flex">
-              <span className="size-1.5 rounded-full bg-success" />
-              {email ?? "Preview"}
-            </p>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/settings/security"
-              className="text-sm font-medium underline-offset-4 hover:underline"
-            >
-              Account
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm transition hover:bg-muted"
+                  />
+                }
+              >
+                <span className="size-1.5 shrink-0 rounded-full bg-success" />
+                <span className="hidden max-w-40 truncate text-muted-foreground sm:inline">{email ?? "Preview"}</span>
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="max-w-56 truncate font-normal text-muted-foreground">
+                    {email ?? "Preview"}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem render={<Link href="/dashboard/settings/security" />}>
+                    <Settings /> Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    render={
+                      <form action={signOutAction} className="contents">
+                        <button type="submit" className="flex w-full items-center gap-1.5">
+                          <LogOut /> Sign out
+                        </button>
+                      </form>
+                    }
+                  />
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <ThemeToggle />
           </div>
         </header>
-        <p
-          role="status"
-          className="border-b bg-warning/10 px-4 py-2 text-sm leading-6 text-warning-foreground md:px-8"
-        >
-          {notice}
-        </p>
+        {previewRole ? <PreviewBanner role={previewRole} /> : null}
+        {notice ? (
+          <p
+            role="status"
+            className="border-b bg-warning/10 px-4 py-2 text-sm leading-6 text-warning-foreground md:px-8"
+          >
+            {notice}
+          </p>
+        ) : null}
         <main
           id="content"
           tabIndex={-1}

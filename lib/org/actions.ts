@@ -1,6 +1,8 @@
 "use server"
 
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { mutationOriginAllowed } from "@/lib/auth/origin"
 import { createServiceRoleClient } from "@/lib/auth/service-role"
@@ -9,6 +11,7 @@ import { getAppDatabase } from "@/lib/db/app"
 import { safeDatabaseMessage } from "@/lib/errors"
 import type { OperationState } from "@/lib/forms/schemas"
 import { organizationCookie } from "@/lib/org/cookie"
+import { rolePreviewCookie, isPreviewableRole } from "@/lib/org/role-preview"
 import { organizationSchema } from "@/lib/org/schema"
 import { acceptInvitation, createOrganization, deleteAccount } from "@/lib/org/store"
 
@@ -39,37 +42,40 @@ export async function createOrganizationAction(
   const database = getAppDatabase()
   if (!database) return blocked("The database is not configured. Nothing was created.")
 
+  let id: string
   try {
-    const id = await createOrganization(database, { ...parsed.data, userId: user.id })
-    const cookieStore = await cookies()
-    cookieStore.set(organizationCookie, id, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-    })
+    id = await createOrganization(database, { ...parsed.data, userId: user.id })
   } catch (error) {
     return rejected(safeDatabaseMessage(error))
   }
 
-  return { status: "success", message: "Organization created.", at: Date.now() }
+  const cookieStore = await cookies()
+  cookieStore.set(organizationCookie, id, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  })
+  revalidatePath("/dashboard", "layout")
+  redirect("/dashboard")
 }
 
-export async function switchOrganizationAction(organizationId: string): Promise<OperationState> {
-  if (!(await mutationOriginAllowed())) return rejected("The request origin was not accepted.")
+/** Switches the active organization cookie. Membership is re-checked here, not trusted from the UI. */
+export async function switchOrganizationAction(organizationId: string): Promise<void> {
+  if (!(await mutationOriginAllowed())) return
   const parsed = z.uuid().safeParse(organizationId)
-  if (!parsed.success) return rejected("That organization id is not valid.")
+  if (!parsed.success) return
 
   const user = await getSessionUser()
-  if (!user) return blocked("Sign in before switching organizations.")
+  if (!user) return
   const database = getAppDatabase()
-  if (!database) return blocked("The database is not configured.")
+  if (!database) return
 
   const membership = await database.query<{ id: string }>(
     `select id from app_organizations_for_user($1) where id = $2::uuid`,
     [user.id, parsed.data],
   )
-  if (!membership.rows[0]) return rejected("You are not a member of that organization.")
+  if (!membership.rows[0]) return
 
   const cookieStore = await cookies()
   cookieStore.set(organizationCookie, parsed.data, {
@@ -78,7 +84,49 @@ export async function switchOrganizationAction(organizationId: string): Promise<
     secure: process.env.NODE_ENV === "production",
     path: "/",
   })
-  return { status: "success", message: "Organization switched.", at: Date.now() }
+  revalidatePath("/dashboard", "layout")
+  redirect("/dashboard")
+}
+
+/**
+ * Lets an owner preview the dashboard as a lower role. Re-checks the caller is really the
+ * current organization's owner here rather than trusting the client, since this cookie
+ * overrides `requireCrmContext`'s role for every permission check in the app.
+ */
+export async function setRolePreviewAction(role: string): Promise<void> {
+  if (!(await mutationOriginAllowed())) return
+
+  const user = await getSessionUser()
+  if (!user) return
+  const database = getAppDatabase()
+  if (!database) return
+
+  const cookieStore = await cookies()
+  const organizationId = cookieStore.get(organizationCookie)?.value
+  if (!organizationId) return
+
+  const membership = await database.query<{ role: string }>(
+    `select role from app_organizations_for_user($1) where id = $2::uuid`,
+    [user.id, organizationId],
+  )
+  const realRole = membership.rows[0]?.role
+  if (realRole !== "owner") return
+
+  if (role === "owner") {
+    cookieStore.delete(rolePreviewCookie)
+  } else if (isPreviewableRole(role)) {
+    cookieStore.set(rolePreviewCookie, role, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    })
+  } else {
+    return
+  }
+
+  revalidatePath("/dashboard", "layout")
+  redirect("/dashboard")
 }
 
 export async function deleteAccountAction(

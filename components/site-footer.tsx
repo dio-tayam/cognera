@@ -65,7 +65,7 @@ export function SiteFooter({ tagline, supportEmail }: { tagline: string; support
       </div>
       <p
         aria-hidden="true"
-        className="text-gradient pointer-events-none translate-y-[0.1em] pb-[0.08em] text-center text-[22vw] leading-none font-semibold tracking-[-0.07em] opacity-[0.09] select-none"
+        className="text-gradient pointer-events-none pb-[0.2em] text-center text-[22vw] leading-none font-semibold tracking-[-0.07em] opacity-[0.09] select-none"
       >
         cognera
       </p>

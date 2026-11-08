@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { useSearchParams } from "next/navigation"
 import { ContentView } from "@/components/content/content-view"
 import { useUnsavedChanges } from "@/components/forms/use-unsaved-changes"
 import {
@@ -148,6 +149,7 @@ async function readError(response: Response): Promise<string> {
 
 export function CmsEditor({ kind }: { kind: Kind }) {
   const collection = kind === "page" ? "pages" : "posts"
+  const searchParams = useSearchParams()
   const [entries, setEntries] = useState<Entry[]>([])
   const [categories, setCategories] = useState<Taxonomy[]>([])
   const [tags, setTags] = useState<Taxonomy[]>([])
@@ -156,7 +158,7 @@ export function CmsEditor({ kind }: { kind: Kind }) {
   const [saveState, setSaveState] = useState<SaveState>("saved")
   const [message, setMessage] = useState("")
   const [query, setQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") ?? "all")
   const [preview, setPreview] = useState(false)
   const [focus, setFocus] = useState<{ block: number; item: number | null; span: number }>({
     block: 0,

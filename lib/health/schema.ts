@@ -20,6 +20,7 @@ export const healthReportSchema = z.object({
     migrations: checkSchema,
     supabase: checkSchema,
     ollama: checkSchema,
+    email: checkSchema,
   }),
 })
 

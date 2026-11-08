@@ -14,7 +14,7 @@ import {
 import { generateWebhookSecret } from "@/lib/workflows/webhook"
 import { enqueueWorkflowExecution, workflowDatabaseError } from "@/lib/workflows/worker"
 
-type Scope = { organizationId: string; userId: string }
+type Scope = { organizationId: string; userId: string; role: string }
 
 export type WorkflowRecord = {
   id: string
@@ -35,16 +35,6 @@ export type WorkflowVersionSummary = {
   status: string
   createdAt: string
   definition: WorkflowDefinition
-}
-
-async function roleOf(tx: SqlClient, organizationId: string, userId: string): Promise<string> {
-  const result = await tx.query<{ role: string }>(
-    "select role from organization_members where organization_id = $1::uuid and user_id = $2",
-    [organizationId, userId],
-  )
-  const role = result.rows[0]?.role
-  if (!role) throw new AppError("forbidden", "You do not belong to this organization.", 403)
-  return role
 }
 
 export function canWriteWorkflows(role: string): boolean {
@@ -79,7 +69,6 @@ function tenant<T>(client: SqlClient, scope: Scope, fn: (tx: SqlClient) => Promi
 
 export async function listWorkflows(client: SqlClient, scope: Scope) {
   return tenant(client, scope, async (tx) => {
-    await roleOf(tx, scope.organizationId, scope.userId)
     const rows = await tx.query<{
       id: string
       name: string
@@ -133,7 +122,7 @@ export async function createWorkflow(
 ): Promise<WorkflowRecord> {
   try {
     return await tenant(client, scope, async (tx) => {
-      const role = await roleOf(tx, scope.organizationId, scope.userId)
+      const role = scope.role
       if (!canWriteWorkflows(role))
         throw new AppError("forbidden", "You cannot edit workflows.", 403)
       const inserted = await tx.query<{ id: string }>(
@@ -200,14 +189,13 @@ export async function getWorkflowRecord(
   id: string,
 ): Promise<WorkflowRecord> {
   return tenant(client, scope, async (tx) => {
-    await roleOf(tx, scope.organizationId, scope.userId)
     return readWorkflow(tx, id)
   })
 }
 
 export async function getWorkflowOverview(client: SqlClient, scope: Scope, id: string) {
   return tenant(client, scope, async (tx) => {
-    const role = await roleOf(tx, scope.organizationId, scope.userId)
+    const role = scope.role
     const workflow = await readWorkflow(tx, id)
     const versions = await tx.query<{
       id: string
@@ -265,7 +253,7 @@ export async function saveWorkflow(
   const definition = checked.definition
   try {
     const workflow = await tenant(client, scope, async (tx) => {
-      const role = await roleOf(tx, scope.organizationId, scope.userId)
+      const role = scope.role
       if (!canWriteWorkflows(role))
         throw new AppError("forbidden", "You cannot edit workflows.", 403)
       await tx.query("select id from workflows where id = $1::uuid for update", [id])
@@ -315,7 +303,7 @@ export async function setWorkflowActive(
 ) {
   try {
     return await tenant(client, scope, async (tx) => {
-      const role = await roleOf(tx, scope.organizationId, scope.userId)
+      const role = scope.role
       if (!canActivateWorkflows(role)) {
         throw new AppError("forbidden", "Only an owner or admin can activate workflows.", 403)
       }
@@ -389,7 +377,7 @@ export async function rotateWebhookSecret(
 ): Promise<string> {
   const secret = generateWebhookSecret()
   await tenant(client, scope, async (tx) => {
-    const role = await roleOf(tx, scope.organizationId, scope.userId)
+    const role = scope.role
     if (!canActivateWorkflows(role))
       throw new AppError("forbidden", "You cannot rotate webhook secrets.", 403)
     const workflow = await readWorkflow(tx, id)
@@ -419,7 +407,7 @@ export async function revokeWebhookSecret(
   id: string,
 ): Promise<boolean> {
   return tenant(client, scope, async (tx) => {
-    const role = await roleOf(tx, scope.organizationId, scope.userId)
+    const role = scope.role
     if (!canActivateWorkflows(role))
       throw new AppError("forbidden", "You cannot revoke webhook secrets.", 403)
     await readWorkflow(tx, id)
@@ -450,7 +438,7 @@ export async function startWorkflowRun(
   input: Record<string, unknown> = {},
 ): Promise<string> {
   const target = await tenant(client, scope, async (tx) => {
-    const role = await roleOf(tx, scope.organizationId, scope.userId)
+    const role = scope.role
     if (!canWriteWorkflows(role)) throw new AppError("forbidden", "You cannot run workflows.", 403)
     const workflow = await readWorkflow(tx, id)
     if (mode === "test") return { versionId: workflow.versionId, workflow }
@@ -560,7 +548,6 @@ export async function listExecutions(
   filter: { workflowId?: string; status?: (typeof executionStatuses)[number]; limit?: number } = {},
 ): Promise<ExecutionSummary[]> {
   return tenant(client, scope, async (tx) => {
-    await roleOf(tx, scope.organizationId, scope.userId)
     const rows = await tx.query<SummaryRow>(
       `select ${summaryColumns}
        from workflow_executions e
@@ -619,7 +606,7 @@ export async function executionDetail(
   executionId: string,
 ): Promise<ExecutionDetail> {
   return tenant(client, scope, async (tx) => {
-    const role = await roleOf(tx, scope.organizationId, scope.userId)
+    const role = scope.role
     const rows = await tx.query<
       SummaryRow & {
         input: unknown

@@ -18,6 +18,7 @@ import {
   type NodeProps,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
+import { cn } from "cn"
 import { useUnsavedChanges } from "@/components/forms/use-unsaved-changes"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -751,7 +752,7 @@ function Builder({ workflowId }: { workflowId: string }) {
           label="Save"
           busy={busy === "save"}
           reason={reasons.save}
-          primary
+          variant="default"
           onClick={() => void save()}
         />
         <ToolbarButton
@@ -787,24 +788,28 @@ function Builder({ workflowId }: { workflowId: string }) {
           label="Test run"
           busy={busy === "test"}
           reason={reasons.test}
+          variant="outline"
           onClick={() => void act("test")}
         />
         <ToolbarButton
           label="Run now"
           busy={busy === "run"}
           reason={reasons.run}
+          variant="default"
           onClick={() => void act("run")}
         />
         <ToolbarButton
           label={active && !latestPublished ? "Publish latest" : "Activate"}
           busy={busy === "activate"}
           reason={reasons.activate}
+          variant="success"
           onClick={() => void act("activate")}
         />
         <ToolbarButton
           label="Deactivate"
           busy={busy === "deactivate"}
           reason={reasons.deactivate}
+          variant="destructive"
           onClick={() => void act("deactivate")}
         />
       </div>
@@ -1130,25 +1135,29 @@ function ToolbarButton({
   label,
   reason,
   busy,
-  primary,
+  variant = "outline",
   onClick,
 }: {
   label: string
   reason?: string
   busy?: boolean
-  primary?: boolean
+  variant?: "outline" | "default" | "success" | "destructive"
   onClick: () => void
 }) {
   // A disabled button does not fire pointer events, so the reason sits on a wrapper.
+  // Colored variants (default/success/destructive) barely dim at the shared disabled:opacity-50,
+  // so a disabled reason forces the flat muted look regardless of variant.
+  const unavailable = Boolean(reason)
   return (
     <span title={reason}>
       <Button
         type="button"
         size="sm"
-        variant={primary ? "default" : "outline"}
-        disabled={Boolean(reason) || busy}
+        variant={variant}
+        disabled={unavailable || busy}
         aria-label={reason ? `${label}. Unavailable: ${reason}` : label}
         onClick={onClick}
+        className={cn(unavailable && "disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground disabled:border-dashed disabled:border-border")}
       >
         {busy ? `${label}…` : label}
       </Button>

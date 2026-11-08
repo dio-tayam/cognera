@@ -13,6 +13,7 @@ export const aiOperationIds = [
   "article_draft",
   "faq_draft",
   "transform_text",
+  "job_description",
 ] as const
 export type AiOperationId = (typeof aiOperationIds)[number]
 
@@ -20,6 +21,8 @@ export const toneOptions = ["professional", "friendly", "concise", "warm"] as co
 export const leadLabels = ["hot", "warm", "cold", "support", "spam"] as const
 export type LeadLabel = (typeof leadLabels)[number]
 export const articleLengths = ["short", "medium", "long"] as const
+export const employmentTypes = ["full_time", "part_time", "contract", "internship"] as const
+export const workLocations = ["remote", "hybrid", "onsite"] as const
 
 export const transformModes = [
   "rewrite",
@@ -85,6 +88,13 @@ export const aiInputSchemas = {
   transform_text: z.object({
     text: longText("text"),
     mode: z.enum(transformModes).default("rewrite"),
+  }),
+  job_description: z.object({
+    title: shortText("job title"),
+    department: optionalText(120),
+    location: z.enum(workLocations).default("remote"),
+    employmentType: z.enum(employmentTypes).default("full_time"),
+    mustHaves: optionalText(2_000),
   }),
 } satisfies Record<AiOperationId, z.ZodType>
 
@@ -234,6 +244,41 @@ export const aiOperations: AiOperationMeta[] = [
     example: {
       text: "hey so we got ur message and we can def help with the automations thing, lmk when ur free to talk",
       mode: "formal",
+    },
+  },
+  {
+    id: "job_description",
+    label: "Job description",
+    group: "Content",
+    description: "A posting draft with responsibilities and requirements. Review before publishing.",
+    fields: [
+      { name: "title", label: "Job title", kind: "text", required: true, placeholder: "Senior Backend Engineer" },
+      { name: "department", label: "Department", kind: "text", placeholder: "Engineering" },
+      {
+        name: "location",
+        label: "Location",
+        kind: "select",
+        options: workLocations.map((location) => [location, titleCase(location)] as const),
+      },
+      {
+        name: "employmentType",
+        label: "Employment type",
+        kind: "select",
+        options: employmentTypes.map((type) => [type, titleCase(type.replace("_", "-"))] as const),
+      },
+      {
+        name: "mustHaves",
+        label: "Must-haves (optional)",
+        kind: "textarea",
+        placeholder: "Paste required skills, years of experience, or anything else the role needs.",
+      },
+    ],
+    example: {
+      title: "Senior Backend Engineer",
+      department: "Engineering",
+      location: "remote",
+      employmentType: "full_time",
+      mustHaves: "5+ years with Postgres and TypeScript. Experience with multi-tenant SaaS is a plus.",
     },
   },
 ]

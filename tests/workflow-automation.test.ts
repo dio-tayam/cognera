@@ -88,8 +88,8 @@ describe("workflow execution", () => {
     const client = await database()
     const organizationId = await organization(client, "alpha", "owner-1")
     const otherId = await organization(client, "beta", "owner-2")
-    const owner = { organizationId, userId: "owner-1" }
-    const editor = { organizationId, userId: "alpha-editor" }
+    const owner = { organizationId, userId: "owner-1", role: "owner" }
+    const editor = { organizationId, userId: "alpha-editor", role: "editor" }
     const created = await createWorkflow(client, owner, "Lead follow-up")
     const saved = await saveWorkflow(client, editor, created.id, {
       definition: leadFollowUpDefinition(),
@@ -139,14 +139,14 @@ describe("workflow execution", () => {
     expect(again.rows).toHaveLength(1)
 
     await expect(
-      getWorkflowRecord(client, { organizationId: otherId, userId: "owner-2" }, created.id),
+      getWorkflowRecord(client, { organizationId: otherId, userId: "owner-2", role: "owner" }, created.id),
     ).rejects.toMatchObject({
       code: "not_found",
     })
     await expect(
       executionDetail(
         client,
-        { organizationId: otherId, userId: "owner-2" },
+        { organizationId: otherId, userId: "owner-2", role: "owner" },
         runs.rows[0]?.id ?? "",
       ),
     ).rejects.toMatchObject({
@@ -157,7 +157,7 @@ describe("workflow execution", () => {
   test("retries retryable failures, stops permanent failures, recovers abandoned jobs, and isolates claims", async () => {
     const client = await database()
     const organizationId = await organization(client, "retry", "owner-1")
-    const owner = { organizationId, userId: "owner-1" }
+    const owner = { organizationId, userId: "owner-1", role: "owner" }
     const workflow = await createWorkflow(client, owner, "Retry")
     await saveWorkflow(client, owner, workflow.id, {
       definition: {
@@ -370,7 +370,7 @@ describe("webhook signatures", () => {
 
     const client = await database()
     const organizationId = await organization(client, "hook", "owner-1")
-    const workflow = await createWorkflow(client, { organizationId, userId: "owner-1" }, "Hook")
+    const workflow = await createWorkflow(client, { organizationId, userId: "owner-1", role: "owner" }, "Hook")
     await client.query(
       `insert into workflow_webhook_secrets (organization_id, workflow_id, secret, status)
        values ($1::uuid, $2::uuid, $3, 'active')`,

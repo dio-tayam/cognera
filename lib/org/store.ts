@@ -1,3 +1,4 @@
+import { withTenant } from "@/lib/db/tenant"
 import type { SqlClient } from "@/lib/db/types"
 import {
   acceptInvitationSchema,
@@ -20,6 +21,37 @@ export async function createOrganization(
   const id = result.rows[0]?.app_create_organization
   if (!id) throw new Error("Organization was not created.")
   return id
+}
+
+export type MembershipRow = { id: string; name: string; role: string }
+
+/** Role counts for the current organization. Member emails stay private — profiles
+ * are only visible to their own owner by row-level security, by design. */
+export async function getMembershipSummary(
+  client: SqlClient,
+  scope: { organizationId: string; userId: string },
+): Promise<{ total: number; byRole: Record<string, number> }> {
+  return withTenant(client, { tenantId: scope.organizationId, userId: scope.userId }, async (tx) => {
+    const result = await tx.query<{ role: string; count: string }>(
+      "select role, count(*)::text as count from organization_members where organization_id = $1 group by role",
+      [scope.organizationId],
+    )
+    const byRole = Object.fromEntries(result.rows.map((row) => [row.role, Number(row.count)]))
+    const total = result.rows.reduce((sum, row) => sum + Number(row.count), 0)
+    return { total, byRole }
+  })
+}
+
+/** Every organization the user belongs to, for the account menu's organization switcher. */
+export async function listOrganizationsForUser(
+  client: SqlClient,
+  userId: string,
+): Promise<MembershipRow[]> {
+  const result = await client.query<MembershipRow>(
+    "select id, name, role from app_organizations_for_user($1)",
+    [userId],
+  )
+  return result.rows
 }
 
 export async function insertLead(

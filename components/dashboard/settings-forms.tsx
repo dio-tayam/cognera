@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { startTransition, useActionState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Field, describedBy } from "@/components/forms/field"
@@ -53,7 +53,7 @@ export function ProfileForm() {
       className="flex max-w-xl flex-col gap-4"
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        submit(values)
+        startTransition(() => submit(values))
       })}
     >
       {state.message ? (
@@ -95,7 +95,7 @@ export function InviteForm() {
       className="flex max-w-xl flex-col gap-4"
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        submit(values)
+        startTransition(() => submit(values))
       })}
     >
       {state.message ? (
@@ -169,7 +169,7 @@ export function PasswordForm({
       className="flex max-w-xl flex-col gap-4"
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        submit(values)
+        startTransition(() => submit(values))
       })}
     >
       {unavailable && reason ? (
@@ -237,7 +237,7 @@ export function OrganizationForm() {
       className="flex max-w-xl flex-col gap-4"
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        submit(values)
+        startTransition(() => submit(values))
       })}
     >
       {state.message ? (
@@ -271,7 +271,7 @@ export function AcceptInvitationForm() {
       className="flex max-w-xl flex-col gap-4"
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        submit(values)
+        startTransition(() => submit(values))
       })}
     >
       {state.message ? (
@@ -302,7 +302,7 @@ export function DeleteAccountForm() {
       className="flex max-w-xl flex-col gap-4"
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        submit(values)
+        startTransition(() => submit(values))
       })}
     >
       {state.message ? (

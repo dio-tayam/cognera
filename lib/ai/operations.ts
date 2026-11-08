@@ -228,5 +228,27 @@ export async function runAiOperation(
       const result = await provider.generateText(transformRequest(input.mode, input.text), options)
       return finish(operation, result, result.text, { kind: "text" })
     }
+    case "job_description": {
+      const input = valid.input as AiInput<"job_description">
+      const location = input.location.replace("_", " ")
+      const employmentType = input.employmentType.replace("_", "-")
+      const result = await provider.generateText(
+        {
+          instructions: [
+            `Write a job posting in Markdown for a ${employmentType}, ${location} role.`,
+            "Include sections: a short intro, Responsibilities, Requirements, and Nice to have.",
+            "Do not invent a salary, equity, benefits, or company name. Use [placeholder] for anything the poster must fill in.",
+          ].join("\n"),
+          data: [
+            { label: "title", content: input.title },
+            ...(input.department ? [{ label: "department", content: input.department }] : []),
+            ...(input.mustHaves ? [{ label: "must-haves", content: input.mustHaves }] : []),
+          ],
+          temperature: 0.6,
+        },
+        options,
+      )
+      return finish(operation, result, result.text, { kind: "text" })
+    }
   }
 }

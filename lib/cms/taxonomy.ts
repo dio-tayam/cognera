@@ -3,19 +3,9 @@ import { withTenant } from "@/lib/db/tenant"
 import type { SqlClient } from "@/lib/db/types"
 import { canWriteCms } from "@/lib/cms/schema"
 
-type Scope = { organizationId: string; userId: string }
+type Scope = { organizationId: string; userId: string; role: string }
 
 export type TaxonomyItem = { id: string; name: string; slug: string }
-
-async function roleOf(tx: SqlClient, organizationId: string, userId: string): Promise<string> {
-  const result = await tx.query<{ role: string }>(
-    "select role from organization_members where organization_id = $1::uuid and user_id = $2",
-    [organizationId, userId],
-  )
-  const role = result.rows[0]?.role
-  if (!role) throw new AppError("forbidden", "You do not belong to this organization.", 403)
-  return role
-}
 
 function asError(error: unknown): AppError {
   if (error instanceof AppError) return error
@@ -31,7 +21,6 @@ async function listTable(client: SqlClient, scope: Scope, table: "cms_categories
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      await roleOf(tx, scope.organizationId, scope.userId)
       const rows = await tx.query<TaxonomyItem>(`select id, name, slug from ${table} order by name`)
       return rows.rows
     },
@@ -49,7 +38,7 @@ async function createItem(
       client,
       { tenantId: scope.organizationId, userId: scope.userId },
       async (tx) => {
-        const role = await roleOf(tx, scope.organizationId, scope.userId)
+        const role = scope.role
         if (!canWriteCms(role)) throw new AppError("forbidden", "You cannot edit content.", 403)
         const inserted = await tx.query<TaxonomyItem>(
           `insert into ${table} (organization_id, name, slug) values ($1::uuid, $2, $3) returning id, name, slug`,

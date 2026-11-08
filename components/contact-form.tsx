@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { startTransition, useActionState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Field, describedBy } from "@/components/forms/field"
@@ -35,7 +35,7 @@ export function ContactForm({ action = submitContact }: { action?: ContactAction
       onSubmit={(event) => {
         event.preventDefault()
         void form.handleSubmit((values) => {
-          submit(values)
+          startTransition(() => submit(values))
         })(event)
       }}
     >

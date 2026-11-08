@@ -35,6 +35,7 @@ export function configuredEffects(
     async sendEmail(input, context) {
       const target = blankToUndefined(process.env.EMAIL_WEBHOOK_URL)
       if (!target) throw new WorkflowStepError("Email sending is not configured.", false)
+      const relaySecret = blankToUndefined(process.env.EMAIL_RELAY_SECRET)
       let response
       try {
         response = await safeOutboundFetch(target, {
@@ -43,6 +44,9 @@ export function configuredEffects(
           headers: {
             "content-type": "application/json",
             "idempotency-key": context.idempotencyKey,
+            // Sent for Cognera's own /api/email-relay. A third-party provider ignores an
+            // unexpected header; our relay rejects the request (401) without it.
+            ...(relaySecret ? { "x-relay-secret": relaySecret } : {}),
           },
           body: JSON.stringify({ to: input.to, subject: input.subject, body: input.body }),
           signal: context.signal,

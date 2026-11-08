@@ -1,8 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   AlertTriangle,
+  Briefcase,
   Check,
   Copy,
   Eye,
@@ -47,6 +48,7 @@ const icons: Record<AiOperationId, LucideIcon> = {
   article_draft: FileText,
   faq_draft: MessagesSquare,
   transform_text: Repeat2,
+  job_description: Briefcase,
 }
 
 const labelTone: Record<string, string> = {
@@ -73,7 +75,7 @@ function defaults(id: AiOperationId): Record<string, string> {
   )
 }
 
-export function AiWorkspace() {
+export function AiWorkspace({ header }: { header?: ReactNode }) {
   const [operation, setOperation] = useState<AiOperationId>("draft_email")
   const [values, setValues] = useState<Record<AiOperationId, Record<string, string>>>(
     () => Object.fromEntries(aiOperations.map((meta) => [meta.id, defaults(meta.id)])) as Record<AiOperationId, Record<string, string>>,
@@ -181,64 +183,67 @@ export function AiWorkspace() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Connection */}
-      <section
-        aria-label="AI connection"
-        className={cn(
-          "flex flex-col gap-4 rounded-3xl border bg-card p-5 sm:flex-row sm:items-start sm:justify-between",
-          health && !ready && "border-warning/40",
-        )}
-      >
-        <div className="flex gap-3">
-          <span className="relative mt-1.5 flex size-2.5">
-            {ready ? <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" /> : null}
-            <span className={cn("relative inline-flex size-2.5 rounded-full", statusTone)} />
-          </span>
-          <div className="flex flex-col gap-1" role="status" aria-live="polite">
-            <p className="font-medium">
-              {healthError
-                ? "AI status unavailable"
-                : !health
-                  ? "Checking Ollama…"
-                  : status === "ready"
-                    ? `Connected to Ollama · ${health.health.model}`
-                    : status === "model_missing"
-                      ? "Ollama is running, model missing"
-                      : status === "unreachable"
-                        ? "Ollama is unreachable"
-                        : "Ollama is not configured"}
-            </p>
-            <p className="text-sm leading-6 text-muted-foreground">{healthError ?? health?.health.message}</p>
-            {health?.health.hint ? <p className="text-sm leading-6">{health.health.hint}</p> : null}
-            {health && !ready ? (
-              <p className="text-sm text-muted-foreground">
-                Suggested for this server: <span className="font-mono">{health.suggestion.model}</span> ({health.suggestion.download}).
-                Cognera never downloads models or falls back to a paid provider.
+      {/* Header + connection, paired so the status card fills the space beside the intro copy */}
+      <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr] lg:items-start">
+        {header}
+        <section
+          aria-label="AI connection"
+          className={cn(
+            "flex h-fit flex-col gap-4 rounded-3xl border bg-card p-5",
+            health && !ready && "border-warning/40",
+          )}
+        >
+          <div className="flex gap-3">
+            <span className="relative mt-1.5 flex size-2.5 shrink-0">
+              {ready ? <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" /> : null}
+              <span className={cn("relative inline-flex size-2.5 rounded-full", statusTone)} />
+            </span>
+            <div className="flex flex-col gap-1" role="status" aria-live="polite">
+              <p className="font-medium">
+                {healthError
+                  ? "AI status unavailable"
+                  : !health
+                    ? "Checking Ollama…"
+                    : status === "ready"
+                      ? `Connected to Ollama · ${health.health.model}`
+                      : status === "model_missing"
+                        ? "Ollama is running, model missing"
+                        : status === "unreachable"
+                          ? "Ollama is unreachable"
+                          : "Ollama is not configured"}
               </p>
-            ) : null}
-            {health?.health.installedModels.length ? (
-              <p className="flex flex-wrap gap-1 pt-1">
-                {health.health.installedModels.map((name) => (
-                  <span key={name} className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
-                    {name}
-                  </span>
-                ))}
-              </p>
-            ) : null}
+              <p className="text-sm leading-6 text-muted-foreground">{healthError ?? health?.health.message}</p>
+              {health?.health.hint ? <p className="text-sm leading-6">{health.health.hint}</p> : null}
+              {health && !ready ? (
+                <p className="text-sm text-muted-foreground">
+                  Suggested for this server: <span className="font-mono">{health.suggestion.model}</span> ({health.suggestion.download}).
+                  Cognera never downloads models or falls back to a paid provider.
+                </p>
+              ) : null}
+              {health?.health.installedModels.length ? (
+                <p className="flex flex-wrap gap-1 pt-1">
+                  {health.health.installedModels.map((name) => (
+                    <span key={name} className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
+                      {name}
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+            </div>
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {health?.health.latencyMs != null ? (
-            <span className="font-mono text-xs text-muted-foreground">{health.health.latencyMs} ms</span>
-          ) : null}
-          {health?.mode === "preview" ? <Badge variant="outline">Preview</Badge> : null}
-          <Button type="button" variant="outline" onClick={() => void checkHealth()} disabled={checking}>
-            <RefreshCw className={cn(checking && "animate-spin")} /> Check connection
-          </Button>
-        </div>
-      </section>
+          <div className="flex items-center gap-3 border-t pt-3">
+            {health?.health.latencyMs != null ? (
+              <span className="font-mono text-xs text-muted-foreground">{health.health.latencyMs} ms</span>
+            ) : null}
+            {health?.mode === "preview" ? <Badge variant="outline">Preview</Badge> : null}
+            <Button type="button" variant="outline" className="ml-auto" onClick={() => void checkHealth()} disabled={checking}>
+              <RefreshCw className={cn(checking && "animate-spin")} /> Check connection
+            </Button>
+          </div>
+        </section>
+      </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         {/* Input */}
         <section aria-label="Prompt" className="flex flex-col gap-5 rounded-3xl border bg-card p-5">
           <div className="flex flex-col gap-2">

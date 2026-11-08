@@ -92,9 +92,9 @@ describe("cms publishing", () => {
     const client = await database()
     const organizationId = await organization(client, "alpha", "owner-1")
     const otherId = await organization(client, "beta", "owner-2")
-    const owner = { organizationId, userId: "owner-1" }
-    const editor = { organizationId, userId: "alpha-editor" }
-    const member = { organizationId, userId: "alpha-member" }
+    const owner = { organizationId, userId: "owner-1", role: "owner" }
+    const editor = { organizationId, userId: "alpha-editor", role: "editor" }
+    const member = { organizationId, userId: "alpha-member", role: "member" }
     const document = emptyDocument()
     document.blocks[0] = { type: "paragraph", spans: [{ text: "Saved body" }] }
 
@@ -162,7 +162,7 @@ describe("cms publishing", () => {
     })
 
     await expect(
-      getContent(client, { organizationId: otherId, userId: "owner-2" }, "page", page.id),
+      getContent(client, { organizationId: otherId, userId: "owner-2", role: "owner" }, "page", page.id),
     ).rejects.toMatchObject({
       code: "not_found",
     })
@@ -199,7 +199,7 @@ describe("media permissions", () => {
     const files = await storage()
     const organizationId = await organization(client, "media", "owner-1")
     const otherId = await organization(client, "other", "owner-2")
-    const owner = { organizationId, userId: "owner-1" }
+    const owner = { organizationId, userId: "owner-1", role: "owner" }
     expect(() => sniffImage(Buffer.from("<html></html>"))).toThrow()
     expect(() => mediaKey("../etc", crypto.randomUUID())).toThrow()
     await expect(files.put(`../${crypto.randomUUID()}`, png)).rejects.toThrow()
@@ -216,7 +216,7 @@ describe("media permissions", () => {
     expect(
       await readMemberMedia(
         client,
-        { organizationId: otherId, userId: "owner-2" },
+        { organizationId: otherId, userId: "owner-2", role: "owner" },
         asset.id,
         files,
       ),

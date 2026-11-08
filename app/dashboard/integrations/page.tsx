@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { connection } from "next/server"
+import { RefreshButton } from "@/components/dashboard/refresh-button"
 import { PageHeader } from "@/components/layout/page-header"
 import { PageSkeleton } from "@/components/layout/page-skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -19,9 +20,16 @@ const badgeVariant = {
 
 export default function IntegrationsPage() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
-      <IntegrationsContent />
-    </Suspense>
+    <>
+      <PageHeader
+        title="Integrations"
+        description="Database, Supabase, Ollama, and email status come from the live health report."
+        actions={<RefreshButton />}
+      />
+      <Suspense fallback={<PageSkeleton />}>
+        <IntegrationsContent />
+      </Suspense>
+    </>
   )
 }
 
@@ -33,35 +41,31 @@ async function IntegrationsContent() {
     { name: "Migrations", check: report.checks.migrations },
     { name: "Supabase", check: report.checks.supabase },
     { name: "Ollama", check: report.checks.ollama },
+    { name: "Email delivery", check: report.checks.email },
   ]
 
   return (
-    <>
-      <PageHeader
-        title="Integrations"
-        description="Database, Supabase, and Ollama status come from the health report. Billing and email are not connected."
-      />
-      <div className="grid gap-4">
-        {live.map((item) => (
-          <IntegrationCard key={item.name} name={item.name} check={item.check} />
-        ))}
-        <UnavailableCard
-          name="Email delivery"
-          detail="Contact messages and invitations are not sent."
-        />
-        <UnavailableCard name="Billing" detail="Plans cannot be purchased." />
-      </div>
-    </>
+    <div className="grid gap-4 lg:grid-cols-2">
+      {live.map((item) => (
+        <IntegrationCard key={item.name} name={item.name} check={item.check} />
+      ))}
+      <UnavailableCard name="Billing" detail="Plans cannot be purchased." />
+    </div>
   )
 }
 
 function IntegrationCard({ name, check }: { name: string; check: HealthCheck }) {
   return (
-    <Card>
+    <Card className="transition hover:shadow-[var(--elevation-2)]">
       <CardHeader>
         <CardTitle className="flex items-center justify-between gap-3">
           {name}
-          <Badge variant={badgeVariant[check.status]}>{check.status}</Badge>
+          <div className="flex items-center gap-2">
+            {check.latencyMs != null ? (
+              <span className="font-mono text-xs text-muted-foreground">{check.latencyMs}ms</span>
+            ) : null}
+            <Badge variant={badgeVariant[check.status]}>{check.status}</Badge>
+          </div>
         </CardTitle>
         <CardDescription>{check.detail}</CardDescription>
       </CardHeader>

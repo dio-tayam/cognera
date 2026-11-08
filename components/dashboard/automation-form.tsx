@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { startTransition, useActionState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Field, describedBy } from "@/components/forms/field"
@@ -49,7 +49,7 @@ export function AutomationForm({
       className="flex max-w-xl flex-col gap-4"
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        submit(values)
+        startTransition(() => submit(values))
       })}
     >
       {state.message ? (

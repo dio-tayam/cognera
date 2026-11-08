@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/layout/empty-state"
 import { ErrorState } from "@/components/layout/error-state"
@@ -84,8 +85,9 @@ function listUrl(query: string, status: string, page: number): string {
 }
 
 export function CrmLeads() {
+  const searchParams = useSearchParams()
   const [query, setQuery] = useState("")
-  const [status, setStatus] = useState("")
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "")
   const [page, setPage] = useState(1)
   const [data, setData] = useState<PageData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -327,7 +329,7 @@ export function CrmLeads() {
         <Button type="button" variant="outline" disabled={loading} onClick={() => void load()}>
           {loading ? "Loading leads" : "Retry"}
         </Button>
-        <Button type="button" variant="outline" render={<a href={exportHref} />}>
+        <Button variant="outline" nativeButton={false} render={<a href={exportHref} />}>
           Export CSV
         </Button>
       </div>

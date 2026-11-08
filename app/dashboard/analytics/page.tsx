@@ -9,7 +9,7 @@ export default function AnalyticsPage() {
     <>
       <PageHeader
         title="Analytics"
-        description="Tabs switch the empty explanation. No charts or business numbers are shown."
+        description="Leads, workflow runs, AI usage, and content counts for this organization."
       />
       <AnalyticsScreen />
     </>

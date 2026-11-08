@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -26,7 +27,11 @@ const filters = [
 
 /** Every execution in the organization, newest first. Failed runs are the dead-letter queue. */
 export function RunsList() {
-  const [status, setStatus] = useState<(typeof filters)[number]>("")
+  const searchParams = useSearchParams()
+  const [status, setStatus] = useState<(typeof filters)[number]>(() => {
+    const requested = searchParams.get("status")
+    return (filters as readonly string[]).includes(requested ?? "") ? (requested as (typeof filters)[number]) : ""
+  })
   const [runs, setRuns] = useState<ExecutionSummary[] | null>(null)
   const [enabled, setEnabled] = useState(true)
   const [error, setError] = useState<string | null>(null)

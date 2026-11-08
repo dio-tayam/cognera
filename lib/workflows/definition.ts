@@ -326,6 +326,30 @@ export function leadFollowUpDefinition(): WorkflowDefinition {
   }
 }
 
+export function leadWelcomeEmailDefinition(): WorkflowDefinition {
+  return {
+    version: 1,
+    nodes: [
+      { id: "start", type: "lead_created", position: { x: 0, y: 0 }, config: { source: null } },
+      {
+        id: "welcome",
+        type: "send_email",
+        position: { x: 280, y: 0 },
+        config: {
+          toPath: "input.lead.email",
+          subject: "Thanks for reaching out, {{input.lead.name}}",
+          body: "Hi {{input.lead.name}},\n\nThanks for contacting us. Someone from the team will follow up with you shortly.\n\n— Cognera",
+        },
+      },
+      { id: "done", type: "end", position: { x: 560, y: 0 }, config: {} },
+    ],
+    edges: [
+      { id: "e_start", source: "start", target: "welcome", sourceHandle: "next" },
+      { id: "e_welcome", source: "welcome", target: "done", sourceHandle: "next" },
+    ],
+  }
+}
+
 /** Maps schema errors to the node they belong to, so the editor can mark it. */
 function schemaIssues(value: unknown, error: z.ZodError): WorkflowIssue[] {
   const rawNodes =

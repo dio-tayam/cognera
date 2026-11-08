@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/auth/session-user"
 import { getAppDatabase } from "@/lib/db/app"
 import { jsonError } from "@/lib/http/json"
 import { organizationCookie } from "@/lib/org/cookie"
+import { isPreviewableRole, rolePreviewCookie } from "@/lib/org/role-preview"
 import type { SqlClient } from "@/lib/db/types"
 
 export type CrmContext = {
@@ -62,9 +63,15 @@ export async function requireCrmContext(): Promise<
     }
   }
 
+  let role = selected.role
+  if (role === "owner") {
+    const preview = cookieStore.get(rolePreviewCookie)?.value
+    if (isPreviewableRole(preview)) role = preview
+  }
+
   return {
     ok: true,
-    context: { database, organizationId: selected.id, userId: user.id, role: selected.role },
+    context: { database, organizationId: selected.id, userId: user.id, role },
   }
 }
 

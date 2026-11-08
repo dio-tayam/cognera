@@ -5,6 +5,7 @@ import { serviceRoleKeyPresent, readSupabaseConfig } from "@/lib/auth/config"
 import { createPgClient } from "@/lib/db/pg-client"
 import { getMigrationStatus, migrationsDirectory } from "@/lib/db/migrations"
 import { blankToUndefined } from "@/lib/env/values"
+import { readEmailConfig } from "@/lib/email/resend"
 import { publicErrorDetail } from "@/lib/errors"
 import { healthReportSchema, type HealthCheck, type HealthReport } from "@/lib/health/schema"
 
@@ -157,11 +158,27 @@ async function checkOllama(): Promise<HealthCheck> {
   }
 }
 
+async function checkEmail(): Promise<HealthCheck> {
+  const config = readEmailConfig()
+  if (!config) {
+    return blocked("RESEND_API_KEY or RESEND_FROM_EMAIL is not set. Contact messages and invitations are not emailed.")
+  }
+  if (!config.apiKey.startsWith("re_")) {
+    return failed("RESEND_API_KEY does not look like a Resend key (expected it to start with re_).")
+  }
+  // Resend keys scoped to "sending access" (the least-privilege, recommended scope) cannot call
+  // any read endpoint, so reachability can only be confirmed by actually sending mail. This stays
+  // a configuration check; a bad key or unverified "from" address surfaces as an honest error
+  // from sendEmail() at the point contact messages or invitations are actually sent.
+  return { status: "pass", detail: `Configured to send as ${config.from}.` }
+}
+
 export async function getHealthReport(): Promise<HealthReport> {
-  const [databaseResult, supabase, ollama] = await Promise.all([
+  const [databaseResult, supabase, ollama, email] = await Promise.all([
     checkDatabase(),
     checkSupabase(),
     checkOllama(),
+    checkEmail(),
   ])
   const checks = {
     app: { status: "pass" as const, detail: `Cognera AI ${appVersion} is running.` },
@@ -169,6 +186,7 @@ export async function getHealthReport(): Promise<HealthReport> {
     migrations: databaseResult.migrations,
     supabase,
     ollama,
+    email,
   }
   const report: HealthReport = {
     service: brand.name,

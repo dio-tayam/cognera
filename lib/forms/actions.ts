@@ -7,6 +7,8 @@ import { getSessionUser } from "@/lib/auth/session-user"
 import { getAppDatabase } from "@/lib/db/app"
 import { safeDatabaseMessage } from "@/lib/errors"
 import { submitPublicContact } from "@/lib/crm/public-contact"
+import { sendEmail } from "@/lib/email/resend"
+import { getSiteConfig } from "@/lib/site"
 import {
   automationDraftSchema,
   contactSchema,
@@ -125,9 +127,18 @@ export async function inviteTeammate(
     return { status: "rejected", message: safeDatabaseMessage(error), at: Date.now() }
   }
 
+  const site = getSiteConfig()
+  const sent = await sendEmail({
+    to: parsed.data.email,
+    subject: `You're invited to ${site.name}`,
+    text: `You were invited to join an organization on ${site.name}.\n\nSign in, open ${site.publicSiteUrl}/dashboard/settings/team, and paste this invitation token:\n\n${token}`,
+  })
+
   return {
     status: "success",
-    message: `The invitation was saved. No email was sent. The invited person can accept it with this token: ${token}`,
+    message: sent.ok
+      ? "The invitation was saved and emailed."
+      : `The invitation was saved. The email was not sent (${sent.reason}). The invited person can accept it with this token: ${token}`,
     at: Date.now(),
   }
 }

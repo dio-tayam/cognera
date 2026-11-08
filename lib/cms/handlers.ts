@@ -21,8 +21,8 @@ import {
   updateContent,
 } from "@/lib/cms/store"
 
-function scopeOf(context: { organizationId: string; userId: string }) {
-  return { organizationId: context.organizationId, userId: context.userId }
+function scopeOf(context: { organizationId: string; userId: string; role: string }) {
+  return { organizationId: context.organizationId, userId: context.userId, role: context.role }
 }
 
 export function cmsCollection(kind: CmsKind) {

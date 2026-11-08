@@ -31,7 +31,7 @@ export function WorkflowList() {
   const [data, setData] = useState<ListData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState("")
-  const [template, setTemplate] = useState<"blank" | "lead_follow_up">("lead_follow_up")
+  const [template, setTemplate] = useState<"blank" | "lead_follow_up" | "lead_welcome_email">("lead_follow_up")
   const [message, setMessage] = useState("")
   const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState("")
@@ -111,6 +111,7 @@ export function WorkflowList() {
             onChange={(event) => setTemplate(event.target.value as typeof template)}
           >
             <option value="lead_follow_up">Lead → condition → follow-up task</option>
+            <option value="lead_welcome_email">Lead → send welcome email</option>
             <option value="blank">Blank (manual trigger)</option>
           </select>
         </div>

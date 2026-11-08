@@ -1,12 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { AlertTriangle, ArrowUpRight, CalendarClock, FileText, Sparkles, Users, Workflow } from "lucide-react"
+import { AlertTriangle, ArrowUpRight, CalendarClock, FileText, Sparkles, UserPlus, Users, Workflow } from "lucide-react"
 import { Suspense } from "react"
+import { RefreshButton } from "@/components/dashboard/refresh-button"
 import { PageHeader } from "@/components/layout/page-header"
 import { PageSkeleton } from "@/components/layout/page-skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { loadWorkspace } from "@/lib/app/access"
+import { getContentAnalytics } from "@/lib/analytics/report"
 import { requireCrmContext } from "@/lib/crm/context"
 import { withTenant } from "@/lib/db/tenant"
 import { getHealthReport } from "@/lib/health/report"
@@ -35,6 +37,7 @@ async function OverviewContent() {
   const report = await getHealthReport()
   const fixture = records.source === "development-fixture"
   const live = fixture ? null : await organizationCounts()
+  const content = fixture ? null : await contentCounts()
   const failures = records.runs.filter((run) => run.status === "failed").length
   const scheduled = records.automations.filter(
     (automation) => automation.trigger === "Schedule",
@@ -96,6 +99,7 @@ async function OverviewContent() {
             ? "Counts appear only for labeled development fixtures. Live tenant metrics are not invented."
             : "Counts are stored records for the current organization."
         }
+        actions={<RefreshButton />}
       />
       <section className="relative overflow-hidden rounded-3xl bg-ink p-6 text-ink-foreground sm:p-8">
         <div className="bg-grid absolute inset-0 opacity-40 [mask-image:radial-gradient(60%_90%_at_90%_10%,black,transparent)]" aria-hidden="true" />
@@ -110,6 +114,7 @@ async function OverviewContent() {
               { href: "/dashboard/ai" as const, label: "Ask the AI", icon: Sparkles },
               { href: "/dashboard/leads" as const, label: "Add a lead", icon: Users },
               { href: "/dashboard/cms/posts" as const, label: "Write a post", icon: FileText },
+              { href: "/dashboard/settings/team" as const, label: "Invite a teammate", icon: UserPlus },
             ].map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
@@ -156,15 +161,48 @@ async function OverviewContent() {
                 : "Pages and posts are saved for this organization. Only published items are public."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p>
-              {fixture
-                ? `${records.pages.length + records.posts.length} development fixture drafts. Published count is not shown because nothing is published.`
-                : "Open Pages or Posts to edit drafts. Unpublished items stay private."}
-            </p>
+          <CardContent className="flex flex-col gap-3">
+            {fixture || !content ? (
+              <p>
+                {fixture
+                  ? `${records.pages.length + records.posts.length} development fixture drafts. Published count is not shown because nothing is published.`
+                  : "Open Pages or Posts to edit drafts. Unpublished items stay private."}
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <Link
+                  href="/dashboard/cms/pages?status=published"
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-muted"
+                >
+                  <span className="text-muted-foreground">Published pages</span>
+                  <span className="font-mono font-medium">{content.pages.published ?? 0}</span>
+                </Link>
+                <Link
+                  href="/dashboard/cms/pages?status=draft"
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-muted"
+                >
+                  <span className="text-muted-foreground">Draft pages</span>
+                  <span className="font-mono font-medium">{content.pages.draft ?? 0}</span>
+                </Link>
+                <Link
+                  href="/dashboard/cms/posts?status=published"
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-muted"
+                >
+                  <span className="text-muted-foreground">Published posts</span>
+                  <span className="font-mono font-medium">{content.posts.published ?? 0}</span>
+                </Link>
+                <Link
+                  href="/dashboard/cms/posts?status=draft"
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-muted"
+                >
+                  <span className="text-muted-foreground">Draft posts</span>
+                  <span className="font-mono font-medium">{content.posts.draft ?? 0}</span>
+                </Link>
+              </div>
+            )}
             <Link
               href="/dashboard/cms"
-              className="mt-3 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline"
+              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
               Open content
             </Link>
@@ -190,6 +228,16 @@ async function OverviewContent() {
       </section>
     </>
   )
+}
+
+async function contentCounts() {
+  const access = await requireCrmContext()
+  if (!access.ok) return null
+  try {
+    return await getContentAnalytics(access.context.database, access.context)
+  } catch {
+    return null
+  }
 }
 
 async function organizationCounts(): Promise<{

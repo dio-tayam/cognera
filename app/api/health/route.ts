@@ -17,6 +17,7 @@ function failureReport(detail: string): HealthReport {
       migrations: blocked,
       supabase: blocked,
       ollama: blocked,
+      email: blocked,
     },
   }
 }

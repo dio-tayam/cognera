@@ -93,16 +93,6 @@ function databaseError(error: unknown): AppError {
   return new AppError("database_error", "The lead could not be saved.", 500)
 }
 
-async function actorRole(tx: SqlClient, organizationId: string, userId: string): Promise<string> {
-  const result = await tx.query<{ role: string }>(
-    "select role from organization_members where organization_id = $1::uuid and user_id = $2",
-    [organizationId, userId],
-  )
-  const role = result.rows[0]?.role
-  if (!role) throw new AppError("forbidden", "You do not belong to this organization.", 403)
-  return role
-}
-
 async function assertOwner(tx: SqlClient, organizationId: string, ownerId: string | null) {
   if (!ownerId) return
   const member = await tx.query(
@@ -148,7 +138,7 @@ export async function listLeads(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      const role = await actorRole(tx, scope.organizationId, scope.userId)
+      const role = scope.role
       if (!roleAllows(role, "read")) throw new AppError("forbidden", "You cannot view leads.", 403)
       const filters = ["organization_id = $1::uuid"]
       const params: unknown[] = [scope.organizationId]
@@ -211,7 +201,7 @@ export async function createLead(
       client,
       { tenantId: scope.organizationId, userId: scope.userId },
       async (tx) => {
-        const role = await actorRole(tx, scope.organizationId, scope.userId)
+        const role = scope.role
         if (!roleAllows(role, "write"))
           throw new AppError("forbidden", "You cannot create leads.", 403)
         await assertOwner(tx, scope.organizationId, input.ownerId)
@@ -256,7 +246,7 @@ export async function getLead(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      const role = await actorRole(tx, scope.organizationId, scope.userId)
+      const role = scope.role
       if (!roleAllows(role, "read")) throw new AppError("forbidden", "You cannot view leads.", 403)
       const lead = await requireLead(tx, id)
       const notes = await tx.query<{
@@ -316,7 +306,7 @@ export async function updateLead(
       client,
       { tenantId: scope.organizationId, userId: scope.userId },
       async (tx) => {
-        const role = await actorRole(tx, scope.organizationId, scope.userId)
+        const role = scope.role
         if (!roleAllows(role, "write"))
           throw new AppError("forbidden", "You cannot edit leads.", 403)
         const current = await requireLead(tx, id)
@@ -384,7 +374,7 @@ export async function deleteLead(
   id: string,
 ): Promise<void> {
   await withTenant(client, { tenantId: scope.organizationId, userId: scope.userId }, async (tx) => {
-    const role = await actorRole(tx, scope.organizationId, scope.userId)
+    const role = scope.role
     if (!roleAllows(role, "delete"))
       throw new AppError("forbidden", "You cannot delete leads.", 403)
     await requireLead(tx, id)
@@ -405,7 +395,7 @@ export async function addLeadNote(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      const role = await actorRole(tx, scope.organizationId, scope.userId)
+      const role = scope.role
       if (!roleAllows(role, "write")) throw new AppError("forbidden", "You cannot add notes.", 403)
       await requireLead(tx, id)
       const inserted = await tx.query<{
@@ -441,7 +431,7 @@ export async function leadActivity(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      const role = await actorRole(tx, scope.organizationId, scope.userId)
+      const role = scope.role
       if (!roleAllows(role, "read")) throw new AppError("forbidden", "You cannot view leads.", 403)
       await requireLead(tx, id)
       return listActivity(tx, id)

@@ -5,6 +5,8 @@ import { AppError } from "@/lib/errors"
 import { logEvent } from "@/lib/log/logger"
 import { capturePublicLead } from "@/lib/crm/leads"
 import { publicContactSchema } from "@/lib/crm/schema"
+import { sendEmail } from "@/lib/email/resend"
+import { getSiteConfig } from "@/lib/site"
 
 export type PublicContactResult =
   | { status: "accepted"; message: "Thanks. The message was saved." }
@@ -45,5 +47,16 @@ export async function submitPublicContact(input: unknown): Promise<PublicContact
   }
 
   logEvent("info", "contact.saved", { organizationId })
+
+  const supportEmail = getSiteConfig().supportEmail
+  if (supportEmail) {
+    const notified = await sendEmail({
+      to: supportEmail,
+      subject: `New contact message from ${parsed.data.name}`,
+      text: `From: ${parsed.data.name} <${parsed.data.email}>\n\n${parsed.data.message}`,
+    })
+    if (!notified.ok) logEvent("warn", "contact.notification_failed", { reason: notified.reason })
+  }
+
   return { status: "accepted", message: "Thanks. The message was saved." }
 }

@@ -4,7 +4,11 @@ import { z } from "zod"
 import { requireCrmContext, requireMutation } from "@/lib/crm/context"
 import { jsonError, jsonFromError, jsonOk } from "@/lib/http/json"
 import { logEvent } from "@/lib/log/logger"
-import { emptyWorkflowDefinition, leadFollowUpDefinition } from "@/lib/workflows/definition"
+import {
+  emptyWorkflowDefinition,
+  leadFollowUpDefinition,
+  leadWelcomeEmailDefinition,
+} from "@/lib/workflows/definition"
 import { workflowIntegrations } from "@/lib/workflows/effects"
 import {
   canActivateWorkflows,
@@ -42,7 +46,7 @@ export async function GET() {
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  template: z.enum(["blank", "lead_follow_up"]).default("blank"),
+  template: z.enum(["blank", "lead_follow_up", "lead_welcome_email"]).default("blank"),
 })
 
 export async function POST(request: Request) {
@@ -57,7 +61,9 @@ export async function POST(request: Request) {
     const definition =
       parsed.data.template === "lead_follow_up"
         ? leadFollowUpDefinition()
-        : emptyWorkflowDefinition()
+        : parsed.data.template === "lead_welcome_email"
+          ? leadWelcomeEmailDefinition()
+          : emptyWorkflowDefinition()
     const workflow = await createWorkflow(
       access.context.database,
       access.context,

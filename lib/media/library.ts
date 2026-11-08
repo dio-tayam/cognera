@@ -5,7 +5,7 @@ import { canPublishCms, canWriteCms } from "@/lib/cms/schema"
 import { safeFilename, sniffImage } from "@/lib/media/sniff"
 import { createMediaStorage, mediaKey, type MediaStorage } from "@/lib/media/storage"
 
-type Scope = { organizationId: string; userId: string }
+type Scope = { organizationId: string; userId: string; role: string }
 
 export type MediaRecord = {
   id: string
@@ -18,22 +18,11 @@ export type MediaRecord = {
 
 const imageTypes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
 
-async function roleOf(tx: SqlClient, organizationId: string, userId: string): Promise<string> {
-  const result = await tx.query<{ role: string }>(
-    "select role from organization_members where organization_id = $1::uuid and user_id = $2",
-    [organizationId, userId],
-  )
-  const role = result.rows[0]?.role
-  if (!role) throw new AppError("forbidden", "You do not belong to this organization.", 403)
-  return role
-}
-
 export async function listMedia(client: SqlClient, scope: Scope): Promise<MediaRecord[]> {
   return withTenant(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      await roleOf(tx, scope.organizationId, scope.userId)
       const rows = await tx.query<{
         id: string
         filename: string
@@ -79,7 +68,7 @@ export async function uploadMedia(
       client,
       { tenantId: scope.organizationId, userId: scope.userId },
       async (tx) => {
-        const role = await roleOf(tx, scope.organizationId, scope.userId)
+        const role = scope.role
         if (!canWriteCms(role)) throw new AppError("forbidden", "You cannot upload media.", 403)
         const inserted = await tx.query<{ id: string }>(
           `insert into media_assets (organization_id, filename, status, content_type, byte_size)
@@ -122,7 +111,6 @@ export async function readMemberMedia(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      await roleOf(tx, scope.organizationId, scope.userId)
       const rows = await tx.query<{
         filename: string
         content_type: string | null
@@ -177,7 +165,7 @@ export async function deleteMedia(
     client,
     { tenantId: scope.organizationId, userId: scope.userId },
     async (tx) => {
-      const role = await roleOf(tx, scope.organizationId, scope.userId)
+      const role = scope.role
       if (!canPublishCms(role)) throw new AppError("forbidden", "You cannot delete media.", 403)
       const existing = await tx.query<{ storage_path: string | null }>(
         `select storage_path from media_assets where id = $1::uuid and status = 'stored'`,

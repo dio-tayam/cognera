@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { startTransition, useActionState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -37,7 +37,7 @@ export function SignInForm({
       className="flex flex-col gap-4"
       noValidate
       onSubmit={form.handleSubmit((values) => {
-        submit(values)
+        startTransition(() => submit(values))
       })}
     >
       {unavailable && reason ? (

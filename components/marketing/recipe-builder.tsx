@@ -73,7 +73,7 @@ function Blank({
         <ChevronDown className={cn("size-5 transition", open && "rotate-180")} />
       </button>
       {open ? (
-        <ul role="listbox" className="animate-rise absolute top-full left-0 z-20 mt-2 w-64 rounded-2xl border bg-popover p-1.5 font-sans text-base font-normal tracking-normal shadow-[var(--elevation-3)]">
+        <ul role="listbox" className="animate-rise absolute top-full left-1/2 z-20 mt-2 w-[min(16rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border bg-popover p-1.5 font-sans text-base font-normal tracking-normal shadow-[var(--elevation-3)] sm:left-0 sm:w-64 sm:translate-x-0">
           {options[slot].map((item, index) => {
             const Icon = item.icon
             return (
@@ -146,7 +146,7 @@ export function RecipeBuilder() {
   return (
     <div ref={wrapper} className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
       <div className="flex flex-col justify-between gap-10 rounded-3xl border bg-card p-6 sm:p-10">
-        <div className="font-heading text-3xl leading-[1.35] font-bold tracking-[-0.035em] sm:text-[2.6rem]">
+        <div className="font-heading text-[1.75rem] leading-[1.3] font-bold tracking-[-0.035em] sm:text-3xl sm:leading-[1.35] md:text-[2.6rem]">
           When <Blank slot="when" value={picked.when} open={open === "when"} onOpen={setOpen} onPick={pick} />, Cognera will{" "}
           <Blank slot="do" value={picked.do} open={open === "do"} onOpen={setOpen} onPick={pick} />, then{" "}
           <Blank slot="then" value={picked.then} open={open === "then"} onOpen={setOpen} onPick={pick} />.
